@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
+  "functions": {
+    "api/ask.py": {
+      "includeFiles": "{rag,data/kb,data/index,results}/**",
+      "maxDuration": 15,
+      "memory": 1024
+    }
+  }
+}
