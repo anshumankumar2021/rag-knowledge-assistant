@@ -11,15 +11,15 @@ from rag.corpus import load_passages
 from rag.embed import embed
 from rag.features import passage_info
 
-INDEX_PATH = Path(__file__).resolve().parent.parent / "data" / "index" / "index.npz"
+INDEX_DIR = Path(__file__).resolve().parent.parent / "data" / "index"
+EMB_PATH, BM25_PATH = INDEX_DIR / "embeddings.npz", INDEX_DIR / "bm25.npz"
 RRF_K = 60
 
 
 class Index:
     def __init__(self):
-        a = np.load(INDEX_PATH, allow_pickle=False)
-        self.bm25 = BM25.from_arrays(a)
-        self.emb = a["emb"].astype(np.float32)
+        self.bm25 = BM25.from_arrays(np.load(BM25_PATH, allow_pickle=False))
+        self.emb = np.load(EMB_PATH, allow_pickle=False)["emb"].astype(np.float32)
         self.passages = load_passages()
         self._info: dict[int, dict] = {}
 
