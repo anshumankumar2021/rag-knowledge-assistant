@@ -1,4 +1,4 @@
-"""Build the BM25 index and passage embeddings into data/index/index.npz."""
+"""Build the BM25 index and passage embeddings into data/index/."""
 import time
 
 import numpy as np
@@ -6,7 +6,7 @@ import numpy as np
 from rag.bm25 import BM25
 from rag.corpus import load_passages
 from rag.embed import embed
-from rag.index import INDEX_PATH
+from rag.index import BM25_PATH, EMB_PATH
 
 if __name__ == "__main__":
     ps = load_passages()
@@ -16,6 +16,9 @@ if __name__ == "__main__":
     t = time.time()
     E = embed([f"{p.title}. {p.text}" for p in ps])
     print(f"embeddings: {E.shape} in {time.time() - t:.1f}s")
-    INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(INDEX_PATH, emb=E.astype(np.float16), **bm.to_arrays())
-    print(f"wrote {INDEX_PATH} ({INDEX_PATH.stat().st_size / 1e6:.1f} MB)")
+    EMB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    # two files, each small enough for GitHub's web uploader
+    np.savez_compressed(EMB_PATH, emb=E.astype(np.float16))
+    np.savez_compressed(BM25_PATH, **bm.to_arrays())
+    for p in (EMB_PATH, BM25_PATH):
+        print(f"wrote {p} ({p.stat().st_size / 1e6:.1f} MB)")
