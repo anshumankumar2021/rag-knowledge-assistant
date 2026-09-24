@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/anshumankumar2021/rag-knowledge-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/anshumankumar2021/rag-knowledge-assistant/actions/workflows/ci.yml)
 
-**Live demo: [rag-knowledge-assistant.vercel.app](https://rag-knowledge-assistant.vercel.app)**
+**Live demo: [rag-knowledge-assistant-beta.vercel.app](https://rag-knowledge-assistant-beta.vercel.app)**
 
 A retrieval-augmented question-answering assistant over a knowledge base of 19,391 passages from 450 Wikipedia
 articles. It combines keyword and embedding search, re-ranks the candidates with a small learned model, and answers
