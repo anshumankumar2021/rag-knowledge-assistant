@@ -1,0 +1,36 @@
+name: ci
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+  reproduce:
+    # Rebuild everything from the raw SQuAD download and re-score, so the published numbers can be checked.
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements-dev.txt
+      - run: python -m scripts.prepare_data
+      - run: python -m scripts.build_index
+      - run: python -m scripts.train
+      - run: python -m scripts.evaluate
+      - name: Check reproduced results match the committed ones
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          new = json.load(open("results/results.json"))
+          old = json.loads(subprocess.check_output(["git", "show", "HEAD:results/results.json"]))
+          for mode in ("bm25", "dense", "hybrid", "reranked"):
+              for k in ("R@1", "R@5", "R@10"):
+                  a, b = new["retrieval"][mode][k], old["retrieval"][mode][k]
+                  print(f"{mode:9s} {k:5s} committed {b:.4f} reproduced {a:.4f}")
+                  assert abs(a - b) < 0.01, f"{mode} {k} drifted: {b:.4f} -> {a:.4f}"
+          PY
