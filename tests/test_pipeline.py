@@ -41,3 +41,11 @@ def test_all_modes_and_api_contract():
 def test_reported_results_show_reranker_beats_first_stage():
     res = json.loads((ROOT / "results" / "results.json").read_text())["retrieval"]
     assert res["reranked"]["R@1"] > res["bm25"]["R@1"] > res["hybrid"]["R@1"] > res["dense"]["R@1"]
+
+
+def test_opening_example_is_answered_correctly():
+    for _ in range(3):
+        status, item = respond({"random": "in", "good": "1"})
+        assert status == 200
+        r = get_assistant().ask(item["question"])
+        assert r["answer"] and any(a in r["answer"]["text"] for a in item["answers"])
