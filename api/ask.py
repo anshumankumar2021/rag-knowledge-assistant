@@ -2,6 +2,7 @@
 
 GET /api/ask?q=...&mode=reranked|hybrid|bm25|dense   -> answer, citations, ranked passages
 GET /api/ask?random=in|out                           -> a random test question (in or out of the knowledge base)
+GET /api/ask?random=in&good=1                        -> a random test question it answers correctly (page's opening example)
 GET /api/ask?meta=1                                  -> evaluation results and knowledge-base stats
 """
 from __future__ import annotations
@@ -54,6 +55,13 @@ def respond(params: dict) -> tuple[int, dict]:
     kind = params.get("random")
     if kind in ("in", "out"):
         item = random.choice(questions(kind))
+        if kind == "in" and params.get("good"):
+            # opening example for the page: a random test question the assistant answers correctly
+            for _ in range(30):
+                r = get_assistant().ask(item["q"])
+                if r["answer"] and any(a in r["answer"]["text"] for a in item["answers"]):
+                    break
+                item = random.choice(questions(kind))
         return 200, {"question": item["q"], "answers": item["answers"], "in_kb": kind == "in",
                      "article": item["title"]}
     q = (params.get("q") or "").strip()[:MAX_Q]
