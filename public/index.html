@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge Base Assistant</title>
+<meta name="description" content="Retrieval-augmented question answering over 450 Wikipedia articles: hybrid search, a learned re-ranker, quoted answers with citations, and abstention when the answer isn't there.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Ccircle cx='14' cy='14' r='6.5' fill='none' stroke='white' stroke-width='2.6'/%3E%3Cpath d='M19 19l6 6' stroke='white' stroke-width='2.8' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #6f6d68;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --accent: #2a78d6; --series: #2a78d6; --series-dim: #86b6ef;
+  --mark: rgba(42,120,214,0.14); --mark-strong: rgba(42,120,214,0.22);
+  --good: #0ca30c; --good-ink: #006300; --serious-ink: #9a3f14; --critical-ink: #b3261e;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #9a988f;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --accent: #3987e5; --series: #3987e5; --series-dim: #1c5cab;
+    --mark: rgba(57,135,229,0.22); --mark-strong: rgba(57,135,229,0.34);
+    --good-ink: #0ca30c; --serious-ink: #ec835a; --critical-ink: #ff8a80;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #ffffff; --ink-2: #c3c2b7; --muted: #9a988f;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --accent: #3987e5; --series: #3987e5; --series-dim: #1c5cab;
+  --mark: rgba(57,135,229,0.22); --mark-strong: rgba(57,135,229,0.34);
+  --good-ink: #0ca30c; --serious-ink: #ec835a; --critical-ink: #ff8a80;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); text-underline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 28px 0 6px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em; }
+.lede { color: var(--ink-2); max-width: 760px; margin: 0 0 14px; }
+.links { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; font-size: 14px; }
+.links img { display: block; height: 20px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: var(--radius); }
+.card-head { padding: 14px 16px 8px; }
+.card h2 { font-size: 15px; margin: 0; font-weight: 650; }
+.sub { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+
+.ask { margin-top: 18px; padding: 16px; }
+.ask form { display: flex; gap: 8px; }
+.ask input[type=text] { flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--ink); background: var(--page); border: 1px solid var(--axis); border-radius: 8px; padding: 10px 12px; }
+.ask input[type=text]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.btn, select { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 8px 12px; cursor: pointer; min-height: 40px; }
+.btn:hover, select:hover { background: var(--surface-2); }
+.btn:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 600; padding: 8px 18px; }
+.btn.primary:hover { filter: brightness(1.08); background: var(--accent); }
+.btn[disabled] { opacity: .6; cursor: progress; }
+.row2 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+.row2 .spacer { flex: 1; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip-btn { font: inherit; font-size: 13px; color: var(--ink-2); background: var(--surface-2); border: 1px solid transparent; border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.chip-btn:hover { border-color: var(--ring); color: var(--ink); }
+
+#result { margin-top: 12px; display: grid; gap: 12px; }
+.answer { padding: 16px; }
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 13.5px; margin-bottom: 10px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; }
+.badge svg { flex: none; }
+.b-good { color: var(--good-ink); } .b-warn { color: var(--serious-ink); } .b-bad { color: var(--critical-ink); }
+.meta { color: var(--muted); font-variant-numeric: tabular-nums; }
+.quote { font-size: 17px; line-height: 1.55; margin: 0 0 10px; padding-left: 14px; border-left: 3px solid var(--accent); }
+.cite { font-size: 13px; color: var(--ink-2); }
+.cite b { color: var(--ink); font-weight: 600; }
+.context { margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+.context summary { cursor: pointer; color: var(--accent); font-size: 13.5px; }
+.context p { margin: 8px 0 0; }
+mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+mark.ans { background: var(--mark-strong); }
+b.hit { font-weight: 650; color: var(--ink); }
+.gold { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--grid); font-size: 13.5px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+
+.passages { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--grid); }
+.passages li { padding: 12px 16px; border-bottom: 1px solid var(--grid); display: grid; grid-template-columns: 28px minmax(0,1fr); gap: 4px 10px; }
+.passages li:last-child { border-bottom: 0; }
+.rank { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; padding-top: 1px; }
+.p-title { font-weight: 600; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.p-title .meta { font-weight: 400; font-size: 12.5px; }
+.p-text { grid-column: 2; font-size: 13.5px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.p-text.open { -webkit-line-clamp: unset; }
+.gold-tag { font-size: 12px; font-weight: 650; color: var(--good-ink); }
+
+.compare { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border-top: 1px solid var(--grid); }
+.compare .col { padding: 12px 14px; border-right: 1px solid var(--grid); min-width: 0; }
+.compare .col:last-child { border-right: 0; }
+.compare h3 { font-size: 13px; margin: 0 0 8px; color: var(--ink-2); font-weight: 650; }
+.compare ol { margin: 0; padding-left: 18px; font-size: 13px; }
+.compare li { margin-bottom: 4px; overflow-wrap: anywhere; }
+
+.results { margin-top: 28px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+table.t { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 8px 12px; border-bottom: 1px solid var(--grid); }
+table.t td { padding: 8px 12px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+table.t td.num { white-space: nowrap; }
+table.t td.num, table.t th.num { text-align: right; }
+table.t tr.best td { font-weight: 650; }
+.tablewrap { overflow-x: auto; }
+#bar { position: relative; padding: 4px 12px 12px; }
+#bar svg { width: 100%; height: auto; display: block; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-top: 12px; }
+.stat { padding: 14px 16px; }
+.stat .label { font-size: 13px; color: var(--ink-2); }
+.stat .value { font-size: 26px; font-weight: 650; line-height: 1.2; margin-top: 4px; }
+.stat .note { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.note-p { color: var(--muted); font-size: 13px; padding: 0 16px 14px; margin: 8px 0 0; }
+
+.how { margin-top: 12px; }
+.diagram { padding: 6px 12px 12px; overflow-x: auto; }
+.diagram svg { width: 100%; min-width: 640px; height: auto; display: block; }
+.diagram text { font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--ink); }
+.diagram .small { font-size: 10.5px; fill: var(--muted); }
+.diagram .box { fill: var(--surface-2); stroke: var(--axis); }
+.diagram .hot { fill: color-mix(in srgb, var(--accent) 14%, var(--surface)); stroke: var(--accent); stroke-width: 1.5; }
+.diagram .arrow { stroke: var(--muted); stroke-width: 1.4; fill: none; marker-end: url(#ah); }
+.how .body { padding: 0 16px 16px; color: var(--ink-2); font-size: 14px; }
+.how .body p { margin: 0 0 10px; }
+footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
+.err { padding: 14px 16px; color: var(--critical-ink); }
+.loading { opacity: .55; transition: opacity .2s; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .results { grid-template-columns: minmax(0,1fr); }
+  .compare { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .compare .col:nth-child(2) { border-right: 0; }
+  .compare .col:nth-child(-n+2) { border-bottom: 1px solid var(--grid); }
+}
+@media (max-width: 560px) {
+  .ask form { flex-direction: column; }
+  .stats { grid-template-columns: minmax(0,1fr); }
+  .compare { grid-template-columns: minmax(0,1fr); }
+  .compare .col { border-right: 0; border-bottom: 1px solid var(--grid); }
+  .quote { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Live demo</p>
+    <h1>Knowledge Base Assistant</h1>
+    <p class="lede">Ask a question about any of the <span id="nArticles">450</span> Wikipedia articles in its knowledge base. It finds the right passage with hybrid search and a learned re-ranker, then quotes the answer word for word with a citation. When the knowledge base doesn't contain the answer, it says so instead of guessing.</p>
+    <div class="links">
+      <a href="https://github.com/anshumankumar2021/rag-knowledge-assistant">Source on GitHub</a>
+      <a href="https://github.com/anshumankumar2021/rag-knowledge-assistant/actions/workflows/ci.yml" aria-label="CI status"><img src="https://github.com/anshumankumar2021/rag-knowledge-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" width="92" height="20"></a>
+      <span style="color:var(--muted)">by Anshuman Kumar</span>
+    </div>
+  </header>
+
+  <section class="card ask" aria-label="Ask a question">
+    <form id="askForm">
+      <label class="sr" for="q">Your question</label>
+      <input type="text" id="q" name="q" maxlength="300" autocomplete="off" placeholder="e.g. What did Tesla fear someone would do with his invention?">
+      <button class="btn primary" id="askBtn" type="submit">Ask</button>
+    </form>
+    <div class="row2">
+      <button class="btn" type="button" id="rndIn">Random test question</button>
+      <button class="btn" type="button" id="rndOut">Question it shouldn't know</button>
+      <span class="spacer"></span>
+      <label for="mode">Retriever</label>
+      <select id="mode">
+        <option value="reranked" selected>Hybrid + learned re-ranker</option>
+        <option value="hybrid">Hybrid (RRF)</option>
+        <option value="bm25">BM25 keyword</option>
+        <option value="dense">Dense embeddings</option>
+      </select>
+    </div>
+    <div class="chips" id="topics" aria-label="Some articles in the knowledge base"></div>
+  </section>
+
+  <div id="result" aria-live="polite"></div>
+
+  <section aria-labelledby="resTitle">
+    <div class="results">
+      <div class="card">
+        <div class="card-head"><h2 id="resTitle">How well each retriever finds the right passage</h2><p class="sub" id="resSub">10,570 SQuAD dev questions, none used in training</p></div>
+        <div class="tablewrap"><table class="t" id="resTable"><thead><tr><th scope="col">Retriever</th><th scope="col" class="num">Recall@1</th><th scope="col" class="num">Recall@5</th><th scope="col" class="num">Recall@10</th><th scope="col" class="num">MRR@10</th><th scope="col" class="num">p95</th></tr></thead><tbody></tbody></table></div>
+        <p class="note-p">Recall@k: share of questions whose source passage is in the top k results. Latency measured per query on a 2-vCPU machine.</p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Recall@1 by retriever</h2><p class="sub">Right passage ranked first</p></div>
+        <div id="bar" role="img" aria-label="Bar chart of Recall at 1 for each retriever; the same values are in the table."></div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="card stat"><div class="label">Questions answered (answer is in the KB)</div><div class="value" id="sAnsRate">–</div><div class="note" id="sAnsRateN">&nbsp;</div></div>
+      <div class="card stat"><div class="label">Answers that contain the right answer</div><div class="value" id="sAcc">–</div><div class="note" id="sAccN">&nbsp;</div></div>
+      <div class="card stat"><div class="label">Declined when the answer isn't in the KB</div><div class="value" id="sAbs">–</div><div class="note" id="sAbsN">&nbsp;</div></div>
+    </div>
+  </section>
+
+  <section class="card how" aria-labelledby="howTitle">
+    <div class="card-head"><h2 id="howTitle">How it works</h2><p class="sub">Everything runs on CPU inside one serverless function</p></div>
+    <div class="diagram">
+      <svg viewBox="0 0 820 170" role="img" aria-label="Question goes to BM25 and dense retrieval, their top 50 are merged, a learned re-ranker orders them, an answer selector picks a sentence from the top 3 passages, and a confidence check decides whether to answer or decline.">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs>
+        <rect class="box" x="6" y="62" width="92" height="46" rx="8"/><text x="52" y="89" text-anchor="middle">Question</text>
+        <path class="arrow" d="M98 78L128 50"/><path class="arrow" d="M98 92L128 120"/>
+        <rect class="box" x="130" y="24" width="150" height="46" rx="8"/><text x="205" y="44" text-anchor="middle">BM25 keyword</text><text x="205" y="60" text-anchor="middle" class="small">67K-term inverted index</text>
+        <rect class="box" x="130" y="100" width="150" height="46" rx="8"/><text x="205" y="120" text-anchor="middle">Dense embeddings</text><text x="205" y="136" text-anchor="middle" class="small">WordLlama, 256-d</text>
+        <path class="arrow" d="M280 47L310 76"/><path class="arrow" d="M280 123L310 94"/>
+        <rect class="hot" x="312" y="58" width="146" height="54" rx="8"/><text x="385" y="80" text-anchor="middle" style="font-weight:600">Learned re-ranker</text><text x="385" y="97" text-anchor="middle" class="small">16 features, listwise</text>
+        <path class="arrow" d="M458 85H486"/>
+        <rect class="hot" x="488" y="58" width="146" height="54" rx="8"/><text x="561" y="80" text-anchor="middle" style="font-weight:600">Answer selector</text><text x="561" y="97" text-anchor="middle" class="small">best sentence, top 3</text>
+        <path class="arrow" d="M634 85H662"/>
+        <rect class="box" x="664" y="58" width="150" height="54" rx="8"/><text x="739" y="80" text-anchor="middle">Answer + citation</text><text x="739" y="97" text-anchor="middle" class="small">or decline if unsure</text>
+        <text x="385" y="40" text-anchor="middle" class="small">top 50 from each, merged</text>
+      </svg>
+    </div>
+    <div class="body">
+      <p>Keyword search (BM25) and embedding search each pull their top 50 passages. A small neural ranker, trained on 15,000 separate questions to put the right passage first, orders the merged list using 16 signals: both scores, how many of the question's rare words each passage contains, how tightly they cluster within one or two sentences, and title overlap.</p>
+      <p>A second model picks the sentence most likely to contain the answer from the top three passages, so every answer is a verbatim quote with a citation. It can't invent text. A confidence model, trained on questions about articles deliberately left out of the index, decides when to decline. On this dataset keyword search beats embeddings by a wide margin, and naively blending them made results worse. The re-ranker is what makes the combination pay off.</p>
+    </div>
+  </section>
+
+  <footer>Knowledge base and test questions: <a href="https://rajpurkar.github.io/SQuAD-explorer/">SQuAD v1.1</a> (CC BY-SA 4.0), passages from Wikipedia (CC BY-SA). Built by Anshuman Kumar · <a href="https://github.com/anshumankumar2021/rag-knowledge-assistant">GitHub</a></footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const svgNS = "http://www.w3.org/2000/svg";
+  const sv = (tag, attrs) => { const n = document.createElementNS(svgNS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+  const pct = (x, d = 1) => (x * 100).toFixed(d) + "%";
+  const SHORT = { reranked: "Re-ranked hybrid", hybrid: "Hybrid (RRF)", bm25: "BM25 keyword", dense: "Dense" };
+  const MODE_NAMES = { reranked: "Hybrid + learned re-ranker", hybrid: "Hybrid (RRF)", bm25: "BM25 keyword", dense: "Dense embeddings" };
+
+  // Same tokenizer/stemmer as rag/text.py, so highlighted words match what the retriever matched.
+  const SUFFIXES = ["ational", "ization", "ingly", "ments", "ings", "ness", "ies", "ing", "ed", "es", "ly", "s"];
+  function stem(w) {
+    if (w.length <= 3 || /^\d+$/.test(w)) return w;
+    for (const s of SUFFIXES) if (w.endsWith(s) && w.length - s.length >= 3) return w.slice(0, -s.length) + (s === "ies" ? "y" : "");
+    return w;
+  }
+  function highlight(text, terms, into) {
+    const set = new Set(terms);
+    const re = /[A-Za-z0-9]+(?:'[A-Za-z]+)?/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (set.has(stem(m[0].toLowerCase()))) {
+        if (m.index > last) into.appendChild(document.createTextNode(text.slice(last, m.index)));
+        into.appendChild(el("b", "hit", m[0]));
+        last = m.index + m[0].length;
+      }
+    }
+    if (last < text.length) into.appendChild(document.createTextNode(text.slice(last)));
+    return into;
+  }
+  const ICON = {
+    check: '<path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    x: '<path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    q: '<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 4.8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.3" r="1" fill="currentColor"/>',
+  };
+  function badge(cls, icon, text) {
+    const b = el("span", "badge " + cls);
+    const s = document.createElementNS(svgNS, "svg"); s.setAttribute("width", "14"); s.setAttribute("height", "14"); s.setAttribute("viewBox", "0 0 16 16"); s.setAttribute("aria-hidden", "true"); s.innerHTML = ICON[icon];
+    b.append(s, document.createTextNode(text)); return b;
+  }
+
+  let current = null; // {question, answers, in_kb} when the question came from the test sets
+
+  async function api(params) {
+    const res = await fetch("/api/ask?" + new URLSearchParams(params));
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || ("HTTP " + res.status));
+    return body;
+  }
+
+  async function ask(q, fromTest = null) {
+    current = fromTest;
+    const mode = $("mode").value;
+    $("askBtn").disabled = true;
+    $("result").classList.add("loading");
+    try {
+      const modes = ["reranked", "hybrid", "bm25", "dense"];
+      const all = await Promise.all(modes.map(m => api({ q, mode: m })));
+      render(all[modes.indexOf(mode)], all);
+      const u = new URL(location); u.searchParams.set("q", q); history.replaceState(null, "", u);
+    } catch (e) {
+      const box = $("result"); box.textContent = "";
+      const c = el("div", "card err", "Something went wrong: " + e.message); box.appendChild(c);
+    } finally {
+      $("askBtn").disabled = false;
+      $("result").classList.remove("loading");
+    }
+  }
+
+  function render(r, compare) {
+    const box = $("result"); box.textContent = "";
+    const card = el("section", "card answer"); card.setAttribute("aria-label", "Answer");
+    const status = el("div", "status");
+    if (r.mode !== "reranked") {
+      status.append(badge("b-warn", "q", "Retrieval only"), el("span", "meta", `${MODE_NAMES[r.mode]} ranks passages but doesn't pick an answer. Switch to the re-ranker for a quoted answer.`));
+    } else if (r.abstained) {
+      status.append(badge("b-warn", "q", "Not confident this is in the knowledge base"), el("span", "meta", `confidence ${pct(r.confidence, 0)} · below the ${pct(r.threshold, 0)} answer threshold`));
+    } else {
+      status.append(badge("b-good", "check", "Answered from the knowledge base"), el("span", "meta", `confidence ${pct(r.confidence, 0)}`));
+    }
+    status.append(el("span", "meta", `${r.timing_ms.total.toFixed(1)} ms`));
+    card.appendChild(status);
+
+    if (r.answer) {
+      const p = r.passages.find(x => x.pid === r.answer.pid) || r.passages[0];
+      card.appendChild(highlight(r.answer.text, r.query_terms, el("blockquote", "quote")));
+      const cite = el("div", "cite");
+      cite.append(document.createTextNode("Source: "), el("b", null, p.title), document.createTextNode(` · passage #${p.pid}`));
+      card.appendChild(cite);
+      const det = el("details", "context"); det.appendChild(el("summary", null, "Show the full passage"));
+      const para = el("p");
+      const t = p.text, a = r.answer.start, z = r.answer.end;
+      para.appendChild(document.createTextNode(t.slice(0, a)));
+      para.appendChild(el("mark", "ans", t.slice(a, z)));
+      para.appendChild(document.createTextNode(t.slice(z)));
+      det.appendChild(para); card.appendChild(det);
+    } else if (r.mode === "reranked") {
+      card.appendChild(el("p", null, "The best matching passages are below, but none scored high enough to quote as an answer."));
+    }
+
+    if (current) {
+      const g = el("div", "gold");
+      if (current.in_kb) {
+        const got = r.answer && current.answers.some(ans => r.answer.text.includes(ans));
+        g.append(el("span", "meta", "Test-set answer:"), el("b", null, current.answers[0]));
+        if (r.mode === "reranked") g.append(r.answer ? (got ? badge("b-good", "check", "in the quoted sentence") : badge("b-bad", "x", "not in the quoted sentence")) : badge("b-warn", "q", "declined, though it was in the KB"));
+        g.append(el("span", "meta", `from “${current.article}”`));
+      } else {
+        g.append(el("span", "meta", `This question is about “${current.article}”, an article left out of the knowledge base.`));
+        if (r.mode === "reranked") g.append(r.abstained ? badge("b-good", "check", "correctly declined") : badge("b-bad", "x", "answered anyway"));
+      }
+      card.appendChild(g);
+    }
+    box.appendChild(card);
+
+    // ranked passages
+    const pc = el("section", "card"); pc.setAttribute("aria-label", "Retrieved passages");
+    const head = el("div", "card-head"); head.append(el("h2", null, "Top passages"), el("p", "sub", MODE_NAMES[r.mode] + " · matched words in bold"));
+    pc.appendChild(head);
+    const ul = el("ol", "passages");
+    const goldTitle = current && current.in_kb ? current.article : null;
+    r.passages.forEach((p, i) => {
+      const li = el("li");
+      li.appendChild(el("span", "rank", String(i + 1)));
+      const title = el("div", "p-title"); title.appendChild(document.createTextNode(p.title));
+      if (p.prob != null) title.appendChild(el("span", "meta", `re-ranker ${pct(p.prob, 0)}`));
+      if (goldTitle && p.title === goldTitle.replace(/_/g, " ")) title.appendChild(el("span", "gold-tag", "same article as the test answer"));
+      li.appendChild(title);
+      const tx = highlight(p.text, p.match_terms, el("div", "p-text"));
+      tx.tabIndex = 0; tx.title = "Click to expand";
+      tx.addEventListener("click", () => tx.classList.toggle("open"));
+      tx.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tx.classList.toggle("open"); } });
+      li.appendChild(tx);
+      ul.appendChild(li);
+    });
+    pc.appendChild(ul);
+    box.appendChild(pc);
+
+    // retriever comparison
+    const cc = el("section", "card"); cc.setAttribute("aria-label", "Compare retrievers");
+    const h2 = el("div", "card-head"); h2.append(el("h2", null, "Same question, four retrievers"), el("p", "sub", "Top 3 passages from each"));
+    cc.appendChild(h2);
+    const grid = el("div", "compare");
+    ["reranked", "hybrid", "bm25", "dense"].forEach((m, i) => {
+      const col = el("div", "col"); col.appendChild(el("h3", null, MODE_NAMES[m]));
+      const ol = el("ol");
+      compare[i].passages.slice(0, 3).forEach(p => {
+        const li = el("li", null, p.title + " #" + p.pid);
+        if (r.answer && p.pid === r.answer.pid) li.appendChild(el("span", "gold-tag", "  · answer source"));
+        ol.appendChild(li);
+      });
+      col.appendChild(ol); grid.appendChild(col);
+    });
+    cc.appendChild(grid);
+    box.appendChild(cc);
+  }
+
+  function renderResults(meta) {
+    const res = meta.results, R = res.retrieval;
+    $("nArticles").textContent = meta.kb.articles.toLocaleString();
+    $("resSub").textContent = `${res.n_eval.toLocaleString()} SQuAD dev questions, none used in training · ${meta.kb.passages.toLocaleString()} passages indexed`;
+    const tb = $("resTable").querySelector("tbody");
+    const order = ["reranked", "bm25", "hybrid", "dense"];
+    order.forEach(k => {
+      const r = R[k], tr = el("tr", k === "reranked" ? "best" : null);
+      tr.append(el("td", null, MODE_NAMES[k]), el("td", "num", pct(r["R@1"])), el("td", "num", pct(r["R@5"])), el("td", "num", pct(r["R@10"])), el("td", "num", r["MRR@10"].toFixed(3)), el("td", "num", r.p95_ms.toFixed(1) + " ms"));
+      tb.appendChild(tr);
+    });
+    const rr = R.reranked;
+    $("sAnsRate").textContent = pct(rr.answer_rate); $("sAnsRateN").textContent = `of ${res.n_eval.toLocaleString()} in-KB test questions`;
+    $("sAcc").textContent = pct(rr.answer_acc_when_answered); $("sAccN").textContent = "quoted sentence contains SQuAD's answer";
+    $("sAbs").textContent = pct(res.out_of_kb_abstain_rate); $("sAbsN").textContent = `of ${res.n_out_of_kb.toLocaleString()} questions on 20 held-out articles`;
+    drawBar(order.map(k => ({ k, v: R[k]["R@1"] })));
+    const chips = $("topics");
+    chips.appendChild(el("span", "meta", "Some topics:"));
+    meta.kb.sample_titles.forEach(t => { const b = el("button", "chip-btn", t); b.type = "button"; b.addEventListener("click", () => { $("q").value = `What is ${t} known for?`; $("q").focus(); }); chips.appendChild(b); });
+  }
+
+  function drawBar(rows) {
+    const host = $("bar"); host.textContent = "";
+    const W = 440, rowH = 40, L = 124, R = 56, T = 6, H = T + rows.length * rowH + 22;
+    const svg = sv("svg", { viewBox: `0 0 ${W} ${H}` });
+    const x = v => L + (W - L - R) * v;
+    [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+      svg.appendChild(sv("line", { x1: x(v), x2: x(v), y1: T, y2: H - 20, stroke: v === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
+      const t = sv("text", { x: x(v), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }); t.textContent = (v * 100) + "%"; svg.appendChild(t);
+    });
+    rows.forEach((r, i) => {
+      const y = T + i * rowH + 9, h = 22, w = x(r.v) - L, rad = Math.min(4, w);
+      const lab = sv("text", { x: L - 10, y: y + 15, "text-anchor": "end", "font-size": 12, fill: "var(--ink-2)" }); lab.textContent = SHORT[r.k]; svg.appendChild(lab);
+      svg.appendChild(sv("path", { d: `M${L},${y} H${L + w - rad} Q${L + w},${y} ${L + w},${y + rad} V${y + h - rad} Q${L + w},${y + h} ${L + w - rad},${y + h} H${L} Z`, fill: r.k === "reranked" ? "var(--series)" : "var(--series-dim)" }));
+      const val = sv("text", { x: L + w + 6, y: y + 15, "font-size": 12, fill: "var(--ink)", "font-weight": r.k === "reranked" ? 650 : 400 }); val.textContent = pct(r.v); svg.appendChild(val);
+    });
+    host.appendChild(svg);
+  }
+
+  $("askForm").addEventListener("submit", (e) => { e.preventDefault(); const q = $("q").value.trim(); if (q) ask(q); });
+  $("mode").addEventListener("change", () => { const q = $("q").value.trim(); if (q) ask(q, current && current.question === q ? current : null); });
+  async function random(kind) {
+    try {
+      const r = await api({ random: kind });
+      $("q").value = r.question;
+      ask(r.question, { question: r.question, answers: r.answers, in_kb: r.in_kb, article: r.article });
+    } catch (e) { /* surfaced by ask() on the next try */ }
+  }
+  $("rndIn").addEventListener("click", () => random("in"));
+  $("rndOut").addEventListener("click", () => random("out"));
+
+  api({ meta: 1 }).then(renderResults).catch(() => { $("resSub").textContent = "Couldn't load evaluation results."; });
+  const initial = new URLSearchParams(location.search).get("q");
+  if (initial) { $("q").value = initial; ask(initial); } else { random("in"); }
+})();
+</script>
+</body>
+</html>
