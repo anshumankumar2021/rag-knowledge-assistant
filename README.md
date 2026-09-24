@@ -78,7 +78,7 @@ Rebuild everything from scratch (about 10 minutes on a laptop CPU):
 
 ```bash
 python -m scripts.prepare_data     # downloads SQuAD v1.1 from GitHub, writes data/kb/
-python -m scripts.build_index      # BM25 + embeddings -> data/index/index.npz
+python -m scripts.build_index      # BM25 + embeddings -> data/index/{bm25,embeddings}.npz
 python -m scripts.train            # re-ranker, answer selector, abstain model -> data/index/models.json
 python -m scripts.evaluate         # results/results.json
 ```
