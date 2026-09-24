@@ -149,11 +149,65 @@ footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
   .compare .col { border-right: 0; border-bottom: 1px solid var(--grid); }
   .quote { font-size: 16px; }
 }
+
+/* ---------- Robo, the assistant character ---------- */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 12px 28px; align-items: end; }
+.buddy { position: relative; display: flex; flex-direction: column; align-items: center; }
+.bubble { position: relative; max-width: 250px; min-height: 40px; background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 8px 12px; font-size: 13.5px; line-height: 1.4; color: var(--ink); box-shadow: 0 4px 14px rgba(0,0,0,.06); text-align: center; transition: opacity .2s; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; background: var(--surface); border-right: 1px solid var(--ring); border-bottom: 1px solid var(--ring); transform: translateX(-50%) rotate(45deg); }
+.robo-btn { background: none; border: 0; padding: 4px 0 0; cursor: pointer; border-radius: 16px; line-height: 0; }
+.robo-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#robo { width: 150px; height: auto; overflow: visible; }
+#robo .shell { fill: var(--surface-2); stroke: var(--axis); stroke-width: 2; }
+#robo .visor { fill: #141c28; }
+#robo .glow { fill: #7fd6ff; }
+#robo .glow-stroke { stroke: #7fd6ff; stroke-width: 3.5; fill: none; stroke-linecap: round; }
+#robo .limb { stroke: var(--axis); stroke-width: 7; stroke-linecap: round; fill: none; }
+#robo .hand { fill: var(--surface-2); stroke: var(--axis); stroke-width: 2; }
+#robo .bulb { fill: var(--accent); }
+#robo #head, #robo .arm, #robo .eye-g, #robo .mouth { transition: transform .35s cubic-bezier(.3,1.4,.5,1); }
+#robo .arm { transform-box: view-box; }
+#robo #armL { transform-origin: 50px 124px; }
+#robo #armR { transform-origin: 110px 124px; }
+#robo #head { transform-box: view-box; transform-origin: 80px 104px; }
+#robo .blink { transform-box: fill-box; transform-origin: center; animation: blink 5.2s infinite; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+#robo .body-g { animation: bob 3.6s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+#robo .bulb { animation: glow 2.4s ease-in-out infinite; }
+@keyframes glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+#robo.thinking .bulb { animation-duration: .5s; }
+#robo.thinking .dots { opacity: 1; }
+#robo .dots { opacity: 0; transition: opacity .2s; }
+#robo .dots circle { fill: var(--muted); animation: dot 1s infinite; }
+#robo .dots circle:nth-child(2) { animation-delay: .15s; } #robo .dots circle:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+#robo .mouth { opacity: 0; }
+#robo.idle .m-smile, #robo.listening .m-smile, #robo.happy .m-grin, #robo.thinking .m-o, #robo.unsure .m-flat, #robo.oops .m-wavy { opacity: 1; }
+#robo.happy #armR { transform: rotate(-150deg); }
+#robo.happy .body-g { animation: hop .5s ease-out 2; }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-9px); } }
+#robo.unsure #armL { transform: rotate(62deg); } #robo.unsure #armR { transform: rotate(-62deg); }
+#robo.oops #armR { transform: rotate(-118deg); }
+#robo .sweat { opacity: 0; transition: opacity .3s; } #robo.oops .sweat { opacity: 1; }
+#robo .q-mark { opacity: 0; transition: opacity .3s; } #robo.unsure .q-mark { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  #robo .body-g, #robo .bulb, #robo .blink, #robo .dots circle, #robo.happy .body-g { animation: none; }
+  #robo #head, #robo .arm, #robo .eye-g, #robo .mouth { transition: none; }
+}
+@media (max-width: 760px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .buddy { flex-direction: row-reverse; justify-content: flex-end; gap: 8px; align-items: center; }
+  .bubble { text-align: left; }
+  .bubble::after { left: -7px; top: 50%; bottom: auto; transform: translateY(-50%) rotate(135deg); }
+  #robo { width: 96px; }
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="top">
+  <header class="top hero">
+    <div>
     <p class="eyebrow">Live demo</p>
     <h1>Knowledge Base Assistant</h1>
     <p class="lede">Ask a question about any of the <span id="nArticles">450</span> Wikipedia articles in its knowledge base. It finds the right passage with hybrid search and a learned re-ranker, then quotes the answer word for word with a citation. When the knowledge base doesn't contain the answer, it says so instead of guessing.</p>
@@ -161,6 +215,40 @@ footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
       <a href="https://github.com/anshumankumar2021/rag-knowledge-assistant">Source on GitHub</a>
       <a href="https://github.com/anshumankumar2021/rag-knowledge-assistant/actions/workflows/ci.yml" aria-label="CI status"><img src="https://github.com/anshumankumar2021/rag-knowledge-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" width="92" height="20"></a>
       <span style="color:var(--muted)">by Anshuman Kumar</span>
+    </div>
+    </div>
+    <div class="buddy">
+      <div class="bubble" id="bubble" aria-hidden="true">Hi! Ask me about any of 450 Wikipedia articles.</div>
+      <button class="robo-btn" id="roboBtn" type="button" aria-label="Robot assistant: ask a random test question">
+        <svg id="robo" class="idle" viewBox="0 0 160 190" aria-hidden="true">
+          <g class="body-g">
+            <g id="armL" class="arm"><path class="limb" d="M50 124 Q36 138 36 156"/><circle class="hand" cx="36" cy="160" r="7"/></g>
+            <g id="armR" class="arm"><path class="limb" d="M110 124 Q124 138 124 156"/><circle class="hand" cx="124" cy="160" r="7"/></g>
+            <rect class="shell" x="50" y="112" width="60" height="52" rx="16"/>
+            <circle class="glow" cx="80" cy="136" r="4.5" opacity=".85"/>
+            <rect class="shell" x="60" y="164" width="12" height="14" rx="4"/><rect class="shell" x="88" y="164" width="12" height="14" rx="4"/>
+            <g id="head">
+              <line x1="80" y1="30" x2="80" y2="16" stroke="var(--axis)" stroke-width="3"/>
+              <circle class="bulb" cx="80" cy="12" r="6"/>
+              <rect class="shell" x="22" y="56" width="10" height="26" rx="4"/><rect class="shell" x="128" y="56" width="10" height="26" rx="4"/>
+              <rect class="shell" x="30" y="28" width="100" height="80" rx="26"/>
+              <rect class="visor" x="40" y="40" width="80" height="56" rx="18"/>
+              <g class="eye-g" id="eyes">
+                <g class="blink"><rect class="glow" x="54" y="55" width="13" height="17" rx="6.5"/></g>
+                <g class="blink"><rect class="glow" x="93" y="55" width="13" height="17" rx="6.5"/></g>
+              </g>
+              <path class="mouth m-smile glow-stroke" d="M70 82 Q80 88 90 82"/>
+              <path class="mouth m-grin glow-stroke" d="M67 80 Q80 93 93 80"/>
+              <path class="mouth m-o glow-stroke" d="M80 80 m-4 3 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0"/>
+              <path class="mouth m-flat glow-stroke" d="M71 84 H89"/>
+              <path class="mouth m-wavy glow-stroke" d="M68 84 Q72 80 76 84 T84 84 T92 84"/>
+              <path class="sweat" d="M122 38 q5 8 0 11 q-5 -3 0 -11z" fill="#7fd6ff"/>
+              <text class="q-mark" x="140" y="34" font-size="22" font-weight="700" fill="var(--muted)">?</text>
+            </g>
+            <g class="dots"><circle cx="132" cy="22" r="3"/><circle cx="142" cy="14" r="3.5"/><circle cx="153" cy="5" r="4"/></g>
+          </g>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -276,6 +364,51 @@ footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
     b.append(s, document.createTextNode(text)); return b;
   }
 
+
+  // ---------- Robo: an assistant character that watches the cursor and reacts to results ----------
+  const robo = (() => {
+    const svg = $("robo"), eyes = $("eyes"), head = $("head"), bubble = $("bubble");
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let pointer = null, lookAt = null, state = "idle", timer = null, t0 = performance.now();
+    let ex = 0, ey = 0, tilt = 0;
+    addEventListener("pointermove", (e) => { pointer = { x: e.clientX, y: e.clientY }; });
+    function set(next, text, holdMs) {
+      state = next;
+      svg.setAttribute("class", next);
+      if (text != null) bubble.textContent = text;
+      clearTimeout(timer);
+      if (holdMs) timer = setTimeout(() => { state = "idle"; svg.setAttribute("class", "idle"); }, holdMs);
+    }
+    function frame(now) {
+      requestAnimationFrame(frame);
+      const r = svg.getBoundingClientRect();
+      if (!r.width) return;
+      const cx = r.left + r.width / 2, cy = r.top + r.height * 0.33;
+      let tx = 0, ty = 0;
+      const target = lookAt ? lookAt() : pointer;
+      if (state === "thinking") {            // scan back and forth while searching
+        tx = Math.sin((now - t0) / 260) * 6; ty = -4;
+      } else if (target) {
+        const dx = target.x - cx, dy = target.y - cy, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 260);
+        tx = (dx / d) * 7 * k; ty = (dy / d) * 5 * k;
+      }
+      const ease = reduce ? 1 : 0.18;
+      ex += (tx - ex) * ease; ey += (ty - ey) * ease;
+      tilt += ((tx / 7) * 6 - tilt) * ease;
+      eyes.style.transform = `translate(${ex.toFixed(2)}px, ${ey.toFixed(2)}px)`;
+      const armsUp = state === "happy" || state === "unsure" || state === "oops";
+      head.style.transform = `rotate(${(armsUp ? tilt * 0.4 : tilt).toFixed(2)}deg)`;
+    }
+    requestAnimationFrame(frame);
+    const input = $("q");
+    input.addEventListener("focus", () => { lookAt = () => { const b = input.getBoundingClientRect(); return { x: b.left + Math.min(b.width - 20, 18 + input.value.length * 8), y: b.top + b.height / 2 }; }; if (state !== "thinking") set("listening", "I'm listening…"); });
+    input.addEventListener("input", () => { if (state !== "thinking" && state !== "listening") set("listening", "I'm listening…"); });
+    input.addEventListener("blur", () => { lookAt = null; if (state === "listening") set("idle"); });
+    $("roboBtn").addEventListener("click", () => random("in"));
+    return { set };
+  })();
+
+  let KB_PASSAGES = "19,391";
   let current = null; // {question, answers, in_kb} when the question came from the test sets
 
   async function api(params) {
@@ -290,6 +423,7 @@ footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
     const mode = $("mode").value;
     $("askBtn").disabled = true;
     $("result").classList.add("loading");
+    robo.set("thinking", `Searching ${KB_PASSAGES} passages…`);
     try {
       const modes = ["reranked", "hybrid", "bm25", "dense"];
       const all = await Promise.all(modes.map(m => api({ q, mode: m })));
@@ -298,6 +432,7 @@ footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
     } catch (e) {
       const box = $("result"); box.textContent = "";
       const c = el("div", "card err", "Something went wrong: " + e.message); box.appendChild(c);
+      robo.set("unsure", "Hmm, I couldn't reach my knowledge base. Try again?", 6000);
     } finally {
       $("askBtn").disabled = false;
       $("result").classList.remove("loading");
@@ -390,11 +525,35 @@ footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
     });
     cc.appendChild(grid);
     box.appendChild(cc);
+    react(r);
+  }
+
+  function react(r) {
+    const src = r.answer ? (r.passages.find(p => p.pid === r.answer.pid) || r.passages[0]).title : null;
+    if (r.mode !== "reranked") return robo.set("idle", `That's how ${MODE_NAMES[r.mode]} ranks it. I only quote answers in re-ranker mode.`);
+    if (current && !current.in_kb) {
+      return r.abstained
+        ? robo.set("unsure", "That article isn't in my knowledge base, so I won't guess.", 7000)
+        : robo.set("oops", `Oops. That article isn't in my knowledge base, and I answered from “${src}” anyway.`, 7000);
+    }
+    if (r.abstained) return robo.set("unsure", "I'm not confident that's in my knowledge base, so I won't guess.", 7000);
+    if (current && current.in_kb && !current.answers.some(a => r.answer.text.includes(a))) {
+      const goldTitle = current.article.replace(/_/g, " ");
+      return robo.set("oops", src === goldTitle
+        ? `Right article (“${src}”), but I quoted the wrong sentence.`
+        : `I quoted “${src}”, but the answer is in “${goldTitle}”.`, 7000);
+    }
+    if (opening) {
+      opening = false;
+      return robo.set("happy", `Found it in “${src}”. That's a picked example I get right. “Random test question” shows unfiltered ones.`, 9000);
+    }
+    robo.set("happy", `Found it in “${src}”.`, 5000);
   }
 
   function renderResults(meta) {
     const res = meta.results, R = res.retrieval;
     $("nArticles").textContent = meta.kb.articles.toLocaleString();
+    KB_PASSAGES = meta.kb.passages.toLocaleString();
     $("resSub").textContent = `${res.n_eval.toLocaleString()} SQuAD dev questions, none used in training · ${meta.kb.passages.toLocaleString()} passages indexed`;
     const tb = $("resTable").querySelector("tbody");
     const order = ["reranked", "bm25", "hybrid", "dense"];
@@ -433,11 +592,13 @@ footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
 
   $("askForm").addEventListener("submit", (e) => { e.preventDefault(); const q = $("q").value.trim(); if (q) ask(q); });
   $("mode").addEventListener("change", () => { const q = $("q").value.trim(); if (q) ask(q, current && current.question === q ? current : null); });
-  async function random(kind) {
+  let opening = false;
+  async function random(kind, good = false) {
     try {
-      const r = await api({ random: kind });
+      const r = await api(good ? { random: kind, good: 1 } : { random: kind });
       $("q").value = r.question;
-      ask(r.question, { question: r.question, answers: r.answers, in_kb: r.in_kb, article: r.article });
+      opening = good;
+      await ask(r.question, { question: r.question, answers: r.answers, in_kb: r.in_kb, article: r.article });
     } catch (e) { /* surfaced by ask() on the next try */ }
   }
   $("rndIn").addEventListener("click", () => random("in"));
@@ -445,7 +606,7 @@ footer { color: var(--muted); font-size: 13px; padding: 22px 0 36px; }
 
   api({ meta: 1 }).then(renderResults).catch(() => { $("resSub").textContent = "Couldn't load evaluation results."; });
   const initial = new URLSearchParams(location.search).get("q");
-  if (initial) { $("q").value = initial; ask(initial); } else { random("in"); }
+  if (initial) { $("q").value = initial; ask(initial); } else { random("in", true); }
 })();
 </script>
 </body>
